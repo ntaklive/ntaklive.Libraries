@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main
+      - 'development/**'
       - 'develop/**'
+      - 'dev/**'
       - 'release/**'
       - 'releases/**'
       - 'feature/**'
