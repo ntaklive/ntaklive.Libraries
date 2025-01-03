@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ntaklive.Libraries.AppDefinitions", "src\ntaklive.Libraries.AppDefinitions\ntaklive.Libraries.AppDefinitions.csproj", "{AAA80C90-C194-4608-BE37-4214770E9B1F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ntaklive.Libraries.EndpointDefinitions", "src\ntaklive.Libraries.EndpointDefinitions\ntaklive.Libraries.EndpointDefinitions.csproj", "{DF87970A-ECCF-4987-B595-2A79506A38A7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{4225D202-31B4-4773-AB88-B54D3590D84D}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\cleanup-nuget-package-versions.yml = .github\workflows\cleanup-nuget-package-versions.yml
+		.github\workflows\deploy.yml = .github\workflows\deploy.yml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AAA80C90-C194-4608-BE37-4214770E9B1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAA80C90-C194-4608-BE37-4214770E9B1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAA80C90-C194-4608-BE37-4214770E9B1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAA80C90-C194-4608-BE37-4214770E9B1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DF87970A-ECCF-4987-B595-2A79506A38A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF87970A-ECCF-4987-B595-2A79506A38A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF87970A-ECCF-4987-B595-2A79506A38A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF87970A-ECCF-4987-B595-2A79506A38A7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

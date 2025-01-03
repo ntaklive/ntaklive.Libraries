@@ -1,0 +1,97 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - 'develop/**'
+      - 'release/**'
+      - 'releases/**'
+      - 'feature/**'
+      - 'features/**'
+      - 'pull-requests/**'
+      - 'pull/**'
+      - 'pr/**'
+      - 'hotfix/**'
+      - 'hotfixes/**'
+      - 'support/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changes
+        uses: tj-actions/changed-files@v41
+        with:
+          since_last_remote_commit: true
+          separator: ','
+          base_sha: ${{ github.event.pull_request.base.sha || github.sha }}
+
+      - name: Find libraries
+        id: find_libraries
+        run: |
+          LIBRARIES=$(find src -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*" | sed 's|/[^/]*$||' | uniq | tr '\n' ' ')
+          echo "Libraries found: $LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Add GitHub Packages NuGet source
+        run: |
+          dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/ntaklive/index.json"
+
+      - name: Cache dependencies
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Process libraries
+        id: process_libraries
+        run: |
+          LIBRARIES="${{ steps.find_libraries.outputs.libraries }}"
+          if [[ -z "$LIBRARIES" ]]; then
+          echo "No libraries to process."
+          exit 0
+          fi
+          CHANGED_FILES="${{ steps.changes.outputs.all_changed_files }}"
+          PROCESSED_LIBRARIES=()
+          for LIBRARY in $LIBRARIES; do
+          if [[ $CHANGED_FILES == *"$LIBRARY"* ]]; then
+           echo "Changes detected in $LIBRARY"
+           echo "Processing $LIBRARY"
+           dotnet restore $LIBRARY
+           dotnet build $LIBRARY --configuration Release --no-restore
+           dotnet test $LIBRARY --configuration Release --no-build --verbosity normal
+           dotnet pack $LIBRARY --configuration Release --no-build --output ./artifacts
+
+           PROCESSED_LIBRARIES+=("$LIBRARY")
+           else
+            echo "No changes in $LIBRARY"
+           fi
+          done
+          
+          echo "processed_libraries=${PROCESSED_LIBRARIES[*]}" >> $GITHUB_OUTPUT
+
+      - name: Publish NuGet packages
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.ref != 'refs/heads/main'
+        run: |
+          PROCESSED_LIBRARIES="${{ steps.process_libraries.outputs.processed_libraries }}"
+          if [[ -z "$PROCESSED_LIBRARIES" ]]; then
+            echo "No libraries to publish."
+            exit 0
+          fi
+          dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source github

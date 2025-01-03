@@ -1,0 +1,71 @@
+name: Cleanup NuGet Package Versions
+
+on:
+  delete:
+    branches:
+      - '**'  # Trigger when any branch is deleted
+  pull_request:
+    types: [ closed ]  # Trigger when a pull request is closed
+
+jobs:
+  cleanup-nuget-package-versions:
+    if: |
+      github.event_name == 'delete' || 
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+      
+      - name: Find libraries
+        id: find_libraries
+        run: |
+          LIBRARIES=$(find src -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*" | sed 's|/[^/]*$||' | uniq | tr '\n' ' ')
+          echo "Libraries found: $LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+
+      - name: Get branch name
+        id: get_branch_name
+        run: |
+          if [[ "${{ github.event_name }}" == "delete" ]]; then
+            BRANCH_NAME=${{ github.event.ref }}
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+            BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+          else
+            echo "No branch to cleanup"
+            exit 0
+          fi
+          SANITIZED_BRANCH_NAME=$(echo "$BRANCH_NAME" | cut -d'/' -f2- | sed -E 's/[^a-zA-Z0-9\.-]+/-/g')
+          echo "branch_name=${SANITIZED_BRANCH_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Delete versions associated with branch
+        id: delete_versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGES=$(find src -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*" | sed 's|^src/||; s|/[^/]*$||' | uniq | tr '\n' ' ')
+          BRANCH_NAME="${{ steps.get_branch_name.outputs.branch_name }}"
+
+          for PACKAGE in $PACKAGES; do
+            echo "Fetching versions for package: $PACKAGE"
+            curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/user/packages/nuget/$PACKAGE/versions" \
+          | jq -c '.[] | {id: .id, name: .name}' \
+          | while read -r item; do
+              id=$(echo "$item" | jq -r '.id')
+              name=$(echo "$item" | jq -r '.name')
+            
+              echo "ID: $id, Name: $name"
+              if [[ "$name" == *"$BRANCH_NAME"* ]]; then
+                echo "Deleting version $VERSION of package $PACKAGE"
+                curl -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "https://api.github.com/user/packages/nuget/$PACKAGE/versions/$id"
+              fi
+            done
+          done
